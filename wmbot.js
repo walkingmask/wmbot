@@ -1,6 +1,12 @@
 // wmbot
 // A slack bot with GAS made for walkingmask.
 
+// Check bot's ID
+// https://api.slack.com/methods/users.list/test
+
+// Check team domain
+// "team-domain".slack.com
+
 // Receive
 function doPost(e) {
   wmManage(e);
@@ -12,7 +18,6 @@ function wmManage(e) {
   // Authentication
   var userInfo = wmAuth(e.parameter.team_domain,e.parameter.token,e.parameter.channel_name,e.parameter.user_name);
   if (!userInfo.auth) {
-    throw new Error("error. authentication error. invalid token.");
     return;
   }
   
@@ -66,7 +71,6 @@ function wmAuth(domain, token, channel, name) {
 // Switch
 function wmSwitch(args, userInfo) {
   
-  // launch default command
   // show usage
   if (typeof(args[0]) === "undefined") {
     wmUsage(userInfo,0,":scream:Oops! Please specify some arguments.");
@@ -90,47 +94,45 @@ function wmSwitch(args, userInfo) {
 function wmDefaultCommandSetting(args, userInfo) {
 
   var text = "";
-
-  // Initialization
-  if (userInfo.dc === null) {
-    text = ":smile:Hi! I'm wmbot. This is *initialization of default command setting*.\n";
-    text += "*Please run again \"default\" command as \"@wmbot default commandname\"*.\n";
-    text += "And then, I'll *set the specified command as a default command*.\n";
-    text += "If you want to know what about me, default command, please type \"@wmbot help\".\n";
-    text += "If you want the list of commands, please type \"@wmbot default list\".";
-    userInfo.dc = "Init";
-    PropertiesService.getScriptProperties().setProperty('dc_'+userInfo.domain+'_'+userInfo.channel,userInfo.dc);
-  }
+  
   // Setting
-  else {
-    if (typeof(args[0]) !== "undefined") {
-      // Set
-      if (args[0] === "set" ){
-        if (typeof(args[1]) !== "undefined") {
-          if (wmIsCommand(args[1])) {
-            text = "OK! I set up default command.";
-            userInfo.dc = args[1];
-            PropertiesService.getScriptProperties().setProperty('dc_'+userInfo.domain+userInfo.channel,userInfo.dc);
-          }
-          else {
-            text = "Oops! \""+args[1]+"\" is not a command. Please specify correct command name.\n";
-            text += usage("@wmbot default set commandname");
-          }
+  if (typeof(args[0]) !== "undefined") {
+    // Set
+    if (args[0] === "set" ){
+      if (typeof(args[1]) !== "undefined") {
+        if (wmIsCommand(args[1])) {
+          text = "OK! I set up default command.";
+          userInfo.dc = args[1];
+          PropertiesService.getScriptProperties().setProperty('dc_'+userInfo.domain+'_'+userInfo.channel,userInfo.dc);
         }
         else {
-          text = "Oops! Please specify the one of command name.\n";
-          text += usage("@wmbot default set commandname");
+          text = "Oops! \""+args[1]+"\" is not a command. Please specify correct command name.\n";
         }
       }
-      // List
-      else if (args[0] === "list"){
-        text = "OK! Here is command list.\n";
-        text += wmGetAllCommandsList().join("\n");
+      else {
+        text = "Oops! Please specify the one of command name.\n";
       }
+    }
+    // List
+    else if (args[0] === "list"){
+      text = "OK! Here is command list.\n";
+      text += wmGetAllCommandsList().join("\n");
+    }
+  }
+  // Initialization
+  else {
+    if (userInfo.dc === null) {
+      text = ":smile:Hi! I'm wmbot. This is *initialization of default command setting*.\n";
+      text += ":white_check_mark:*Please run again \"default\" command as \"@wmbot default set commandname\"*.\n";
+      text += ":white_check_mark:And then, I'll *set the specified command as a default command*.\n";
+      text += ":bulb:If you want to know what about me, default command, please type \"@wmbot help\".\n";
+      text += ":bulb:If you want the list of commands, please type \"@wmbot default list\".";
+      userInfo.dc = "Init";
+      PropertiesService.getScriptProperties().setProperty('dc_'+userInfo.domain+'_'+userInfo.channel,userInfo.dc);
     }
     else {
       text = "Oops! It is incorrect argument.\n";
-      text += usage("@wmbot default {set commandname|list}");
+      text += ":point_right:Usage: @wmbot default { set commandname | list }";
     }
   }
   
@@ -144,11 +146,13 @@ function wmLaunchCommand(commandName, args, userInfo) {
 
   // check command existence
   var defaultFlag = !wmIsCommand(commandName);
+  
   // set default command
   if (defaultFlag) {
+    args = (commandName+" "+args.join(" ")).split(" ");
     commandName = userInfo.dc;
-    args = commandName + args;
   }
+  
   // if default command is unset
   if (commandName === null) {
     text = "Oops! Specified command is not found and default command is usset. Please run \"@wmbot help\".";
@@ -157,18 +161,18 @@ function wmLaunchCommand(commandName, args, userInfo) {
   }
   
   // launch
-  switch (commandName) {
-    case 'Init':
-      // 
-      break;
-    case 'lister':
-      docsLister(args);
-      break;
-    default:
-      // unexpected error
-      text = "Oops! Unexpected error occurred. Please run \"@wmbot help\".";
-      post2Slack(userInfo,text);
-      break;
+  if (commandName === 'Init') {
+    if (userInfo.dc === 'Init') {
+      text = "Oops! You sounds like still the middle of the initialization process.\n";
+      text += "Please continue the initialization process if you want to use the default command.";
+    }
+    else {
+      text = "Sorry, this command only use for default command setting.";
+    }
+    post2Slack(userInfo,text);
+  }
+  else {
+    wmCommandLauncher(userInfo,commandName,args);
   }
 }
 
@@ -193,11 +197,23 @@ function wmUsage(userInfo, level, comment) {
 
   // simple
   if (level === 0) {
-    text += "@wmbot {[help|command args...|default args...]|[args...]}";
+    text = ":point_right:Usage: @wmbot { [ help | command args... | default args... ] | [ args... ] }";
   }
   // detail
   else if (level === 1) {
+    text = ":smile:Hi! This is wmbot detail usage.\n";
+    text += ":bulb:1. Use some command...\n";
+    text += "\t\"@wmbot commandname args...\"\n";
+    text += ":bulb:2. List of available commands...\n";
+    text += "\t\"@wmbot default list\"\n";
+    text += ":bulb:3. Use default command, at first...\n";
+    text += "\t\"@wmbot default\"\n";
+    text += ":bulb:4. Set default command...\n";
+    text += "\t\"@wmbot default set commandname\"\n";
+    text += "\t and then, run \"@wmbot [ default command's argument]\"\n";
+    text += ":bulb:5. Show command's help...\n";
+    text += "\t\"@wmbot commandname help\"\n";
   }
   
-  post2Slack(userInfo,usage(text),comment);
+  post2Slack(userInfo,text,comment);
 }

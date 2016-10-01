@@ -82,12 +82,10 @@ A slack bot with GAS made for walkingmask.
 
 ## TODO
 
-- Separate messages(be step-by-step processing)
-- Write Tests
-- Modify DocsLister
-- Add emoji to comments
+- Format messages(emoji, etc...)
 - Create spreadsheet as a database, in order to improve the search of the info, when the list of property is bloated.
 
 ## REFERENCE
 
 - [slackbot with gas](http://tech.camph.net/slack-bot-with-gas/)
+- [a](https://beatsync.net/main/log20150926.html)
